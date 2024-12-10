@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +26,7 @@ class _TikTokState extends State<TikTok> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     videoUrls = getVideoUrls();
+    videoUrls.shuffle(Random());
     _pageController = PageController(initialPage: 1); // 初始页面设置为 1
     _checkConnectivity(); // 初始化时检查网络状态
     _initializeVideoPlayer(_currentIndex);
@@ -142,15 +146,185 @@ class _TikTokState extends State<TikTok> with SingleTickerProviderStateMixin {
           if (!_isControllerInitialized) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          return Center(
-            child: AspectRatio(
-              aspectRatio: _videoController!.value.aspectRatio,
-              child: VideoPlayer(_videoController!),
-            ),
-          );
+          return TikTokVideoPlayer(videoController: _videoController);
         },
       ),
     );
+  }
+}
+
+class TikTokVideoPlayer extends StatefulWidget {
+  const TikTokVideoPlayer({
+    super.key,
+    required VideoPlayerController? videoController,
+  }) : _videoController = videoController;
+
+  final VideoPlayerController? _videoController;
+
+  @override
+  State<TikTokVideoPlayer> createState() => _TikTokVideoPlayerState();
+}
+
+class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
+  bool _isInteracting = false; // 是否正在交互（显示控制条）
+  double _currentProgress = 0; // 当前播放进度百分比
+  Timer? _hideTimer; // 自动隐藏的定时器
+
+  @override
+  void initState() {
+    super.initState();
+    widget._videoController?.addListener(_updateProgress);
+  }
+
+  @override
+  void dispose() {
+    widget._videoController?.removeListener(_updateProgress);
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  /// 更新进度
+  void _updateProgress() {
+    if (widget._videoController != null && widget._videoController!.value.isInitialized) {
+      final position = widget._videoController!.value.position;
+      final duration = widget._videoController!.value.duration;
+      if (duration.inMilliseconds > 0) {
+        setState(() {
+          _currentProgress = position.inMilliseconds / duration.inMilliseconds;
+        });
+      }
+    }
+  }
+
+  /// 显示控制条
+  void _showControls() {
+    setState(() {
+      _isInteracting = true;
+    });
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(milliseconds: 500), () {
+      setState(() {
+        _isInteracting = false;
+      });
+    });
+  }
+
+  /// 长按弹出菜单
+  void _showLongPressMenu(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+
+    // 计算屏幕中心位置
+    final centerX = screenSize.width / 2;
+    final centerY = screenSize.height / 2;
+
+    showMenu(
+      context: context,
+      // 将菜单位置设置为屏幕中央
+      position: RelativeRect.fromLTRB(centerX - 50, centerY - 50, centerX + 50, centerY + 50),
+      items: [
+        const PopupMenuItem(
+          value: 'option1',
+          child: Text('选项 1'),
+        ),
+        const PopupMenuItem(
+          value: 'option2',
+          child: Text('选项 2'),
+        ),
+      ],
+    ).then((value) {
+      // 菜单关闭后的回调
+      if (value != null) {
+        debugPrint('Selected menu item: $value');
+      }
+    });
+  }
+
+  /// 左右滑动控制播放进度
+  void _handleHorizontalDrag(DragUpdateDetails details) {
+    if (widget._videoController != null && widget._videoController!.value.isInitialized) {
+      final position = widget._videoController!.value.position;
+      final duration = widget._videoController!.value.duration;
+      final delta = details.primaryDelta! / context.size!.width; // 滑动比例
+      final newPosition = position + Duration(seconds: (delta * duration.inSeconds).toInt());
+
+      // 使用 if-else 逻辑
+      Duration clampedPosition;
+      if (newPosition < Duration.zero) {
+        clampedPosition = Duration.zero;
+      } else if (newPosition > duration) {
+        clampedPosition = duration;
+      } else {
+        clampedPosition = newPosition;
+      }
+
+      widget._videoController!.seekTo(clampedPosition);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = widget._videoController;
+    if (controller == null || !controller.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final position = controller.value.position;
+    final duration = controller.value.duration;
+    final progressText = "${_formatDuration(position)} / ${_formatDuration(duration)}";
+
+    return GestureDetector(
+      onTap: () {
+        if (controller.value.isPlaying) {
+          controller.pause();
+        } else {
+          controller.play();
+        }
+      },
+      onLongPress: () => _showLongPressMenu(context),
+      onHorizontalDragUpdate: _handleHorizontalDrag,
+      onHorizontalDragStart: (_) => _showControls(),
+      onHorizontalDragEnd: (_) => _showControls(),
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          Center(
+            child: AspectRatio(
+              aspectRatio: controller.value.aspectRatio,
+              child: VideoPlayer(controller),
+            ),
+          ),
+          if (_isInteracting)
+            Positioned(
+              bottom: 20,
+              left: 20,
+              right: 20,
+              child: Column(
+                children: [
+                  Slider(
+                    value: _currentProgress,
+                    onChanged: (value) {
+                      final newPosition = Duration(milliseconds: (value * duration.inMilliseconds).toInt());
+                      controller.seekTo(newPosition);
+                      _showControls();
+                    },
+                  ),
+                  Text(
+                    progressText,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 格式化时间
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes);
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return "$minutes:$seconds";
   }
 }

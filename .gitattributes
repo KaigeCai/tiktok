@@ -5,3 +5,6 @@
 *.txt linguist-language=dart
 *.swift linguist-language=dart
 *.kt linguist-language=dart
+*.html linguist-language=dart
+*.js linguist-language=dart
+*.css linguist-language=dart
