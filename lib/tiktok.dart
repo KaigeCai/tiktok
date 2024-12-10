@@ -196,19 +196,6 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
     }
   }
 
-  /// 显示控制条
-  void _showControls() {
-    setState(() {
-      _isInteracting = true;
-    });
-    _hideTimer?.cancel();
-    _hideTimer = Timer(const Duration(milliseconds: 500), () {
-      setState(() {
-        _isInteracting = false;
-      });
-    });
-  }
-
   /// 长按弹出菜单
   void _showLongPressMenu(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
@@ -242,22 +229,30 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
   /// 左右滑动控制播放进度
   void _handleHorizontalDrag(DragUpdateDetails details) {
     if (widget._videoController != null && widget._videoController!.value.isInitialized) {
-      final position = widget._videoController!.value.position;
-      final duration = widget._videoController!.value.duration;
-      final delta = details.primaryDelta! / context.size!.width; // 滑动比例
-      final newPosition = position + Duration(seconds: (delta * duration.inSeconds).toInt());
+      final controller = widget._videoController!;
+      final position = controller.value.position;
+      final duration = controller.value.duration;
 
-      // 使用 if-else 逻辑
-      Duration clampedPosition;
-      if (newPosition < Duration.zero) {
-        clampedPosition = Duration.zero;
-      } else if (newPosition > duration) {
-        clampedPosition = duration;
-      } else {
-        clampedPosition = newPosition;
+      if (duration.inMilliseconds > 0) {
+        // 滑动步长与屏幕宽度成比例
+        final delta = details.primaryDelta! / context.size!.width;
+
+        // 根据步长调整时间
+        final deltaTime = Duration(milliseconds: (delta * duration.inMilliseconds).toInt());
+
+        // 计算新的播放位置
+        var newPosition = position + deltaTime;
+
+        // 修正播放位置到合法范围
+        if (newPosition < Duration.zero) {
+          newPosition = Duration.zero;
+        } else if (newPosition > duration) {
+          newPosition = duration;
+        }
+
+        // 跳转到新位置
+        controller.seekTo(newPosition);
       }
-
-      widget._videoController!.seekTo(clampedPosition);
     }
   }
 
@@ -282,8 +277,16 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
       },
       onLongPress: () => _showLongPressMenu(context),
       onHorizontalDragUpdate: _handleHorizontalDrag,
-      onHorizontalDragStart: (_) => _showControls(),
-      onHorizontalDragEnd: (_) => _showControls(),
+      onHorizontalDragStart: (_) {
+        setState(() {
+          _isInteracting = true;
+        });
+      },
+      onHorizontalDragEnd: (_) {
+        setState(() {
+          _isInteracting = false;
+        });
+      },
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -303,9 +306,13 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
                   Slider(
                     value: _currentProgress,
                     onChanged: (value) {
-                      final newPosition = Duration(milliseconds: (value * duration.inMilliseconds).toInt());
+                      final newPosition = Duration(
+                        milliseconds: (value * duration.inMilliseconds).toInt(),
+                      );
                       controller.seekTo(newPosition);
-                      _showControls();
+                      setState(() {
+                        _isInteracting = true;
+                      });
                     },
                   ),
                   Text(
