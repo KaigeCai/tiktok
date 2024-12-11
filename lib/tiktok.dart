@@ -4,6 +4,9 @@ import 'dart:math';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import 'video_urls.dart';
@@ -197,21 +200,27 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
   }
 
   /// 长按弹出菜单
-  void _showLongPressMenu(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-
-    // 计算屏幕中心位置
-    final centerX = screenSize.width / 2;
-    final centerY = screenSize.height / 2;
+  void _showLongPressMenu(BuildContext context, Offset position) {
+    if (!mounted) return;
 
     showMenu(
       context: context,
-      // 将菜单位置设置为屏幕中央
-      position: RelativeRect.fromLTRB(centerX - 50, centerY - 50, centerX + 50, centerY + 50),
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
       items: [
         const PopupMenuItem(
-          value: 'option1',
-          child: Text('选项 1'),
+          value: 'share',
+          child: Row(
+            children: [
+              Icon(Icons.share, color: Colors.black),
+              SizedBox(width: 8),
+              Text('分享'),
+            ],
+          ),
         ),
         const PopupMenuItem(
           value: 'option2',
@@ -219,11 +228,79 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
         ),
       ],
     ).then((value) {
-      // 菜单关闭后的回调
-      if (value != null) {
-        debugPrint('Selected menu item: $value');
+      if (value == 'share' && context.mounted) {
+        _showShareMenu(context);
       }
     });
+  }
+
+  void _showShareMenu(BuildContext context) {
+    final currentVideoUrl = widget._videoController!.dataSource; // 当前播放视频链接
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '分享到',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildShareOption(
+                    context: context,
+                    label: 'QQ',
+                    icon: 'assets/svg/qq.svg',
+                    url: currentVideoUrl,
+                  ),
+                  _buildShareOption(
+                    context: context,
+                    label: '微信',
+                    icon: 'assets/svg/wechat.svg',
+                    url: currentVideoUrl,
+                  ),
+                  _buildShareOption(
+                    context: context,
+                    label: '短信',
+                    icon: 'assets/svg/sms.svg',
+                    url: currentVideoUrl,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 构建单个分享选项
+  Widget _buildShareOption({
+    required BuildContext context,
+    required String label,
+    required String icon,
+    required String url,
+  }) {
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: () => Share.share(url),
+          child: SvgPicture.asset(icon, width: 32.0, height: 32.0),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontSize: 16.0)),
+      ],
+    );
   }
 
   /// 左右滑动控制播放进度
@@ -238,7 +315,9 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
         final delta = details.primaryDelta! / context.size!.width;
 
         // 根据步长调整时间
-        final deltaTime = Duration(milliseconds: (delta * duration.inMilliseconds).toInt());
+        final deltaTime = Duration(
+          milliseconds: (delta * duration.inMilliseconds).toInt(),
+        );
 
         // 计算新的播放位置
         var newPosition = position + deltaTime;
@@ -275,7 +354,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
           controller.play();
         }
       },
-      onLongPress: () => _showLongPressMenu(context),
+      onLongPressStart: (details) => _showLongPressMenu(context, details.globalPosition),
       onHorizontalDragUpdate: _handleHorizontalDrag,
       onHorizontalDragStart: (_) {
         setState(() {

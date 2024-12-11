@@ -1,4 +1,5 @@
-const String videoBaseUrl = "https://douyin.com/aweme/v1/play/?video_id=";
+const String videoBaseUrl = "https://api.amemv.com/aweme/v1/play/?video_id=";
+const String videoBaseUrl1 = "https://douyin.com/aweme/v1/play/?video_id=";
 
 const List<String> videoIds = [
   "v0200fg10000cnfeervog65p4oejdh0g",
