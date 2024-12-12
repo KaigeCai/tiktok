@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import 'video_urls.dart';
@@ -200,7 +199,12 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
   }
 
   /// 长按弹出菜单
-  void _showLongPressMenu(BuildContext context, Offset position) {
+  void _showLongPressMenu({
+    required BuildContext context,
+    required Offset position,
+    required String url,
+    required VideoPlayerController controller,
+  }) {
     if (!mounted) return;
 
     showMenu(
@@ -216,20 +220,35 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
           value: 'share',
           child: Row(
             children: [
-              Icon(Icons.share, color: Colors.black),
+              Icon(Icons.share, color: Colors.blueAccent),
               SizedBox(width: 8),
               Text('分享'),
             ],
           ),
         ),
         const PopupMenuItem(
-          value: 'option2',
-          child: Text('选项 2'),
+          value: 'favorite',
+          child: Row(
+            children: [
+              Icon(Icons.favorite, color: Colors.red),
+              SizedBox(width: 8),
+              Text('列表'),
+            ],
+          ),
         ),
       ],
     ).then((value) {
-      if (value == 'share' && context.mounted) {
-        _showShareMenu(context);
+      if (context.mounted) {
+        switch (value) {
+          case 'share':
+            _showShareMenu(context);
+            break;
+          case 'favorite':
+            controller.pause();
+            Navigator.of(context).pushNamed('favorite', arguments: url);
+            break;
+          default:
+        }
       }
     });
   }
@@ -354,7 +373,12 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
           controller.play();
         }
       },
-      onLongPressStart: (details) => _showLongPressMenu(context, details.globalPosition),
+      onLongPressStart: (details) => _showLongPressMenu(
+        context: context,
+        position: details.globalPosition,
+        url: widget._videoController!.dataSource,
+        controller: widget._videoController!,
+      ),
       onHorizontalDragUpdate: _handleHorizontalDrag,
       onHorizontalDragStart: (_) {
         setState(() {
