@@ -1,26 +1,121 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tiktok/video_urls.dart';
 import 'package:video_player/video_player.dart';
 
-import 'video_urls.dart';
-
-class TikTok extends StatefulWidget {
-  const TikTok({super.key});
+class FavoriteListPage extends StatefulWidget {
+  const FavoriteListPage({super.key});
 
   @override
-  State<TikTok> createState() => _TikTokState();
+  State<FavoriteListPage> createState() => _FavoriteListPageState();
 }
 
-class _TikTokState extends State<TikTok> with SingleTickerProviderStateMixin {
+class _FavoriteListPageState extends State<FavoriteListPage> {
+  /// 从本地缓存加载点赞视频链接
+  Future<void> _loadLikedVideos() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      likedVideos = prefs.getStringList('likedVideos') ?? [];
+    });
+  }
+
+  @override
+  void initState() {
+    _loadLikedVideos();
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Liked Videos'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: GridView.builder(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2, // 每行两列
+            crossAxisSpacing: 8.0,
+            mainAxisSpacing: 8.0,
+            childAspectRatio: 1 / 1, // 控制每个Item的宽高比
+          ),
+          itemCount: likedVideos.length,
+          itemBuilder: (context, index) {
+            return VideoItem(videoUrl: likedVideos[index]);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class VideoItem extends StatefulWidget {
+  const VideoItem({super.key, required this.videoUrl});
+
+  final String videoUrl;
+
+  @override
+  State<VideoItem> createState() => _VideoItemState();
+}
+
+class _VideoItemState extends State<VideoItem> {
+  late VideoPlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
+      ..initialize().then((_) {
+        setState(() {}); // 视频初始化完成后刷新UI
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).pushNamed('player', arguments: {
+          'url': widget.videoUrl,
+          'playList': likedVideos,
+        });
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15.0), // 圆角矩形
+        child: Container(
+          child: _controller.value.isInitialized
+              ? AspectRatio(
+                  aspectRatio: _controller.value.aspectRatio,
+                  child: VideoPlayer(_controller),
+                )
+              : const Center(child: CircularProgressIndicator()),
+        ),
+      ),
+    );
+  }
+}
+
+class FavoriteVideoPlayerPage extends StatefulWidget {
+  const FavoriteVideoPlayerPage({super.key});
+
+  @override
+  State<FavoriteVideoPlayerPage> createState() => _FavoriteVideoPlayerPageState();
+}
+
+class _FavoriteVideoPlayerPageState extends State<FavoriteVideoPlayerPage> with SingleTickerProviderStateMixin {
   late PageController _pageController;
-  late List<String> videoUrls;
   VideoPlayerController? _videoController;
   int _currentIndex = 0;
   bool _isConnected = true; // 网络连接状态
@@ -28,8 +123,6 @@ class _TikTokState extends State<TikTok> with SingleTickerProviderStateMixin {
 
   @override
   void initState() {
-    videoUrls = getVideoUrls();
-    videoUrls.shuffle(Random());
     _pageController = PageController(initialPage: 1); // 初始页面设置为 1
     _checkConnectivity(); // 初始化时检查网络状态
     _initializeVideoPlayer(_currentIndex);
@@ -61,7 +154,7 @@ class _TikTokState extends State<TikTok> with SingleTickerProviderStateMixin {
   Future<void> _initializeVideoPlayer(int index) async {
     _videoController?.dispose();
     _videoController = VideoPlayerController.networkUrl(
-      Uri.parse(videoUrls[index]),
+      Uri.parse(likedVideos[index]),
     )..initialize().then(
         (_) {
           if (mounted) {
@@ -79,12 +172,12 @@ class _TikTokState extends State<TikTok> with SingleTickerProviderStateMixin {
   void _handlePageChange(int index) {
     if (index == 0) {
       // 滑动到虚拟第一页，跳转到实际最后一页
-      _pageController.jumpToPage(videoUrls.length);
+      _pageController.jumpToPage(likedVideos.length);
       setState(() {
-        _currentIndex = videoUrls.length - 1;
+        _currentIndex = likedVideos.length - 1;
       });
       _initializeVideoPlayer(_currentIndex);
-    } else if (index == videoUrls.length + 1) {
+    } else if (index == likedVideos.length + 1) {
       // 滑动到虚拟最后一页，跳转到实际第一页
       _pageController.jumpToPage(1);
       setState(() {
@@ -141,7 +234,7 @@ class _TikTokState extends State<TikTok> with SingleTickerProviderStateMixin {
       backgroundColor: Colors.black,
       body: PageView.builder(
         controller: _pageController,
-        itemCount: videoUrls.length + 2, // 包括虚拟首尾页
+        itemCount: likedVideos.length + 2, // 包括虚拟首尾页
         onPageChanged: _handlePageChange,
         scrollDirection: Axis.vertical,
         itemBuilder: (context, index) {

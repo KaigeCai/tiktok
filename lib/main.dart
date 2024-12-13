@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:tiktok/favorite_list.dart';
+import 'package:tiktok/favorite_list_page.dart';
 import 'package:tiktok/tiktok.dart';
 
 void main() {
@@ -21,6 +21,7 @@ class TikTokApp extends StatelessWidget {
       routes: <String, WidgetBuilder>{
         '/': (context) => const TikTok(),
         'favorite': (context) => const FavoriteListPage(),
+        'player': (context) => const FavoriteVideoPlayerPage(),
       },
     );
   }

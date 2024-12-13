@@ -16,6 +16,7 @@ dependencies:
   flutter_svg: ^2.0.16
   video_player: ^2.9.2
   share_plus: ^10.1.2
+  shared_preferences: ^2.3.3
   
 dev_dependencies:
   flutter_lints: ^4.0.0
