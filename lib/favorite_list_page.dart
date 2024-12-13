@@ -34,9 +34,7 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Liked Videos'),
-      ),
+      appBar: AppBar(title: const Text('点赞视频')),
       body: Padding(
         padding: const EdgeInsets.all(8.0),
         child: GridView.builder(
@@ -48,7 +46,10 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
           ),
           itemCount: likedVideos.length,
           itemBuilder: (context, index) {
-            return VideoItem(videoUrl: likedVideos[index]);
+            return VideoItem(
+              videoUrl: likedVideos[index],
+              index: index,
+            );
           },
         ),
       ),
@@ -57,9 +58,10 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
 }
 
 class VideoItem extends StatefulWidget {
-  const VideoItem({super.key, required this.videoUrl});
+  const VideoItem({super.key, required this.videoUrl, required this.index});
 
   final String videoUrl;
+  final int index;
 
   @override
   State<VideoItem> createState() => _VideoItemState();
@@ -87,10 +89,13 @@ class _VideoItemState extends State<VideoItem> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).pushNamed('player', arguments: {
-          'url': widget.videoUrl,
-          'playList': likedVideos,
-        });
+        Navigator.of(context).pushNamed(
+          '/player',
+          arguments: {
+            'index': widget.index,
+            'videoUrl': widget.videoUrl,
+          },
+        );
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(15.0), // 圆角矩形
@@ -125,7 +130,14 @@ class _FavoriteVideoPlayerPageState extends State<FavoriteVideoPlayerPage> with 
   void initState() {
     _pageController = PageController(initialPage: 1); // 初始页面设置为 1
     _checkConnectivity(); // 初始化时检查网络状态
-    _initializeVideoPlayer(_currentIndex);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      setState(() {
+        _currentIndex = args?['index'];
+        _initializeVideoPlayer(_currentIndex);
+      });
+    });
     super.initState();
   }
 
@@ -203,6 +215,7 @@ class _FavoriteVideoPlayerPageState extends State<FavoriteVideoPlayerPage> with 
   @override
   Widget build(BuildContext context) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
+
     if (!_isConnected) {
       // 未连接网络时的界面
       return const Scaffold(
@@ -268,8 +281,8 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
 
   @override
   void initState() {
-    super.initState();
     widget._videoController?.addListener(_updateProgress);
+    super.initState();
   }
 
   @override
@@ -310,9 +323,11 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
         position.dy + 1,
       ),
       items: [
-        const PopupMenuItem(
-          value: 'share',
-          child: Row(
+        PopupMenuItem(
+          onTap: () {
+            _showShareMenu(context);
+          },
+          child: const Row(
             children: [
               Icon(Icons.share, color: Colors.blueAccent),
               SizedBox(width: 8),
@@ -320,31 +335,8 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
             ],
           ),
         ),
-        const PopupMenuItem(
-          value: 'favorite',
-          child: Row(
-            children: [
-              Icon(Icons.favorite, color: Colors.red),
-              SizedBox(width: 8),
-              Text('列表'),
-            ],
-          ),
-        ),
       ],
-    ).then((value) {
-      if (context.mounted) {
-        switch (value) {
-          case 'share':
-            _showShareMenu(context);
-            break;
-          case 'favorite':
-            controller.pause();
-            Navigator.of(context).pushNamed('favorite');
-            break;
-          default:
-        }
-      }
-    });
+    );
   }
 
   void _showShareMenu(BuildContext context) {
@@ -448,12 +440,6 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
     }
   }
 
-  /// 保存点赞视频链接列表到本地缓存
-  Future<void> _saveLikedVideos() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('likedVideos', likedVideos);
-  }
-
   @override
   Widget build(BuildContext context) {
     final controller = widget._videoController;
@@ -464,7 +450,6 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
     final position = controller.value.position;
     final duration = controller.value.duration;
     final progressText = "${_formatDuration(position)} / ${_formatDuration(duration)}";
-    Offset? doubleTapPosition; // 用于记录点击位置
 
     return GestureDetector(
       onTap: () {
@@ -472,19 +457,6 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
           controller.pause();
         } else {
           controller.play();
-        }
-      },
-      onDoubleTapDown: (TapDownDetails details) {
-        doubleTapPosition = details.globalPosition;
-      },
-      onDoubleTap: () async {
-        _showLikeAnimation(context, doubleTapPosition!);
-        final currentVideoUrl = widget._videoController!.dataSource;
-        if (!likedVideos.contains(currentVideoUrl)) {
-          setState(() {
-            likedVideos.add(currentVideoUrl);
-          });
-          await _saveLikedVideos(); // 更新本地缓存
         }
       },
       onLongPressStart: (details) => _showLongPressMenu(
@@ -542,26 +514,6 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
         ],
       ),
     );
-  }
-
-  void _showLikeAnimation(BuildContext context, Offset tapPosition) {
-    final OverlayState overlay = Overlay.of(context);
-    final OverlayEntry overlayEntry = OverlayEntry(
-      builder: (BuildContext context) => Positioned(
-        top: tapPosition.dy - 50,
-        left: tapPosition.dx - 50,
-        child: const Opacity(
-          opacity: 1.0,
-          child: Icon(
-            Icons.favorite,
-            color: Colors.red,
-            size: 100,
-          ),
-        ),
-      ),
-    );
-    overlay.insert(overlayEntry);
-    Future.delayed(const Duration(milliseconds: 500), () => overlayEntry.remove());
   }
 
   /// 格式化时间

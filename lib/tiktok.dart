@@ -246,7 +246,7 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
             break;
           case 'favorite':
             controller.pause();
-            Navigator.of(context).pushNamed('favorite');
+            Navigator.of(context).pushNamed('/favorite');
             break;
           default:
         }

@@ -20,8 +20,8 @@ class TikTokApp extends StatelessWidget {
       initialRoute: '/',
       routes: <String, WidgetBuilder>{
         '/': (context) => const TikTok(),
-        'favorite': (context) => const FavoriteListPage(),
-        'player': (context) => const FavoriteVideoPlayerPage(),
+        '/favorite': (context) => const FavoriteListPage(),
+        '/player': (context) => const FavoriteVideoPlayerPage(),
       },
     );
   }
