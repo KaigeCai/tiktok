@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -124,13 +125,32 @@ class VideoItem extends StatefulWidget {
 
 class _VideoItemState extends State<VideoItem> {
   late VideoPlayerController _controller;
+  bool _isReady = false;
 
   @override
   void initState() {
     super.initState();
+
+    // 初始化视频播放器
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
-      ..initialize().then((_) {
-        setState(() {}); // 视频初始化完成后刷新UI
+      ..initialize().then((_) async {
+        // 确保视频加载完成后
+        if (_controller.value.isInitialized) {
+          // 生成随机帧时间
+          final duration = _controller.value.duration;
+          final randomTime = Duration(
+            milliseconds: Random().nextInt(duration.inMilliseconds),
+          );
+
+          // 跳转到随机帧并暂停
+          await _controller.seekTo(randomTime);
+          await _controller.pause();
+
+          // 更新状态显示帧
+          setState(() {
+            _isReady = true;
+          });
+        }
       });
   }
 
@@ -157,10 +177,42 @@ class _VideoItemState extends State<VideoItem> {
         child: Container(
           child: _controller.value.isInitialized
               ? AspectRatio(
-                  aspectRatio: _controller.value.aspectRatio,
-                  child: VideoPlayer(_controller),
+                  aspectRatio: 1 / 1,
+                  child: VideoPlayerWithCover(controller: _controller),
                 )
               : const Center(child: CircularProgressIndicator()),
+        ),
+      ),
+    );
+  }
+}
+
+class VideoPlayerWithCover extends StatelessWidget {
+  final VideoPlayerController controller;
+
+  const VideoPlayerWithCover({super.key, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.cover, // 裁剪并缩放视频使其充满
+      child: SizedBox(
+        width: controller.value.size.width,
+        height: controller.value.size.height,
+        child: Stack(
+          alignment: Alignment.center, // 修复对齐问题
+          children: [
+            VideoPlayer(controller),
+            const Align(
+              // 使用 Align 确保 Icon 在中央
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.play_arrow,
+                color: Colors.white54,
+                size: 280.0,
+              ),
+            ),
+          ],
         ),
       ),
     );
