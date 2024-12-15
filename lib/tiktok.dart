@@ -358,7 +358,9 @@ class _TikTokVideoPlayerState extends State<TikTokVideoPlayer> {
   /// 保存点赞视频链接列表到本地缓存
   Future<void> _saveLikedVideos() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('likedVideos', likedVideos);
+    final existingVideos = prefs.getStringList('likedVideos') ?? [];
+    final updatedVideos = Set<String>.from(existingVideos)..addAll(likedVideos);
+    await prefs.setStringList('likedVideos', updatedVideos.toList());
   }
 
   @override

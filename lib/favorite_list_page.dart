@@ -25,6 +25,15 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
     });
   }
 
+  /// 从本地缓存移除指定视频链接
+  Future<void> _removeLikedVideo(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      likedVideos.removeAt(index);
+    });
+    await prefs.setStringList('likedVideos', likedVideos);
+  }
+
   @override
   void initState() {
     _loadLikedVideos();
@@ -35,24 +44,70 @@ class _FavoriteListPageState extends State<FavoriteListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('点赞视频')),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2, // 每行两列
-            crossAxisSpacing: 8.0,
-            mainAxisSpacing: 8.0,
-            childAspectRatio: 1 / 1, // 控制每个Item的宽高比
-          ),
-          itemCount: likedVideos.length,
-          itemBuilder: (context, index) {
-            return VideoItem(
-              videoUrl: likedVideos[index],
-              index: index,
-            );
-          },
-        ),
-      ),
+      body: likedVideos.isEmpty
+          ? const Center(child: Text('暂无视频', style: TextStyle(fontSize: 28.0)))
+          : Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2, // 每行两列
+                  crossAxisSpacing: 8.0,
+                  mainAxisSpacing: 8.0,
+                  childAspectRatio: 1 / 1, // 控制每个Item的宽高比
+                ),
+                itemCount: likedVideos.length,
+                itemBuilder: (context, index) {
+                  // 判断是左列还是右列
+                  final isLeftColumn = index % 2 == 0;
+                  return GestureDetector(
+                    onLongPress: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Text('确认删除'),
+                            content: const Text('您确定要删除这个视频吗？'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop(); // 关闭对话框
+                                },
+                                child: const Text('取消'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  _removeLikedVideo(index); // 删除视频
+                                  Navigator.of(context).pop(); // 关闭对话框
+                                },
+                                child: const Text('确认'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                    child: Dismissible(
+                      key: ValueKey(likedVideos[index]),
+                      direction: isLeftColumn
+                          ? DismissDirection.endToStart // 左列向左滑动
+                          : DismissDirection.startToEnd, // 右列向右滑动
+                      onDismissed: (direction) {
+                        _removeLikedVideo(index); // 移除视频
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('已移除: ${likedVideos[index]}'),
+                          ),
+                        );
+                      },
+                      child: VideoItem(
+                        videoUrl: likedVideos[index],
+                        index: index,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
