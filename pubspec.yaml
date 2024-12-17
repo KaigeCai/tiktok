@@ -1,7 +1,6 @@
 name: tiktok
-description: "A new Flutter project."
-publish_to: 'none'
-version: 1.0.0+1
+description: '抖音纯净版'
+version: 1.0.0
 
 environment:
   sdk: ^3.5.4
@@ -9,7 +8,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   connectivity_plus: ^6.1.0
   cupertino_icons: ^1.0.8
   dio: ^5.7.0
@@ -27,3 +25,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/svg/
+    - assets/icon/

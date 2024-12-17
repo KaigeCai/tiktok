@@ -8,8 +8,8 @@ plugins {
 android {
     namespace = "com.example.tiktok"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
-    
+    ndkVersion = flutter.ndkVersion
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
