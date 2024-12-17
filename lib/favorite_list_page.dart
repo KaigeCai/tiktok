@@ -125,12 +125,9 @@ class VideoItem extends StatefulWidget {
 
 class _VideoItemState extends State<VideoItem> {
   late VideoPlayerController _controller;
-  bool _isReady = false;
 
   @override
   void initState() {
-    super.initState();
-
     // 初始化视频播放器
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
       ..initialize().then((_) async {
@@ -146,12 +143,12 @@ class _VideoItemState extends State<VideoItem> {
           await _controller.seekTo(randomTime);
           await _controller.pause();
 
-          // 更新状态显示帧
-          setState(() {
-            _isReady = true;
-          });
+          setState(() {});
         }
+      }).catchError((onError) {
+        likedVideos.removeAt(widget.index);
       });
+    super.initState();
   }
 
   @override
@@ -204,7 +201,6 @@ class VideoPlayerWithCover extends StatelessWidget {
           children: [
             VideoPlayer(controller),
             const Align(
-              // 使用 Align 确保 Icon 在中央
               alignment: Alignment.center,
               child: Icon(
                 Icons.play_arrow,

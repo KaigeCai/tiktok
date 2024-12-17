@@ -1,5 +1,4 @@
 const String videoBaseUrl = "https://api.amemv.com/aweme/v1/play/?video_id=";
-const String videoBaseUrl1 = "https://douyin.com/aweme/v1/play/?video_id=";
 
 List<String> likedVideos = []; // 全局的共享变量，点赞视频集合
 
@@ -63,7 +62,6 @@ const List<String> videoIds = [
   "v0200fg10000csvanbvog65pkgdpd0b0",
   "v0200fg10000cr6ob0fog65vmvfb2ip0",
   "v0200fg10000crr695nog65tb1sl4ahg",
-  "v1e00fgi0000cte0ikfog65i002rpjr0",
 ];
 
 List<String> getVideoUrls() {

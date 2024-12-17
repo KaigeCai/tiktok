@@ -58,6 +58,7 @@ class _TikTokState extends State<TikTok> with SingleTickerProviderStateMixin {
     );
   }
 
+  /// 初始化播放器
   Future<void> _initializeVideoPlayer(int index) async {
     _videoController?.dispose();
     _videoController = VideoPlayerController.networkUrl(
@@ -72,7 +73,26 @@ class _TikTokState extends State<TikTok> with SingleTickerProviderStateMixin {
             _videoController!.setLooping(true);
           }
         },
-      );
+      ).catchError((error) {
+        debugPrint('视频加载失败: ${videoUrls[_currentIndex]}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('视频加载失败: ${videoUrls[_currentIndex]}'),
+            ),
+          );
+        }
+        _moveToNextPage(); // 如果视频链接无效，则自动跳转到下一个视频
+      });
+  }
+
+  /// 移动到下一个视频页面
+  void _moveToNextPage() {
+    setState(() {
+      _currentIndex = (_currentIndex + 1) % videoUrls.length;
+    });
+    _initializeVideoPlayer(_currentIndex);
+    _pageController.jumpToPage(_currentIndex + 1); // 跳到下一个页面
   }
 
   /// 处理首尾过渡的跳转逻辑
