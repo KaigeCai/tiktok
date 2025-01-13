@@ -146,7 +146,7 @@ class _VideoItemState extends State<VideoItem> {
           setState(() {});
         }
       }).catchError((onError) {
-        likedVideos.removeAt(widget.index);
+        debugPrint('播放失败：$onError ${widget.videoUrl}');
       });
     super.initState();
   }

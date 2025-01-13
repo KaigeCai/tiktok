@@ -3,7 +3,9 @@ const String videoBaseUrl = "https://api.amemv.com/aweme/v1/play/?video_id=";
 List<String> likedVideos = []; // 全局的共享变量，点赞视频集合
 
 const List<String> videoIds = [
+  "v0200fg10000ctue59nog65sdpki8ln0",
   "v0200fg10000cnfeervog65p4oejdh0g",
+  "v0d00fg10000csrggkfog65g3o5vql60",
   "v0200fg10000cjdkiajc77u5fm11ptm0",
   "v0200fg10000cjpihrjc77u3gdldcmrg",
   "v0200fg10000cjrg5orc77u1f1n1u7o0",
